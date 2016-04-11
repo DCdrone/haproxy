@@ -781,10 +781,12 @@ int start_proxies(int verbose)
 			continue; /* already initialized */
 
 		pxerr = 0;
+		//list_for_each_entry是一个内核的宏。对curproxy->conf.listeners的起始地址开始获取每一个listener指针。
 		list_for_each_entry(listener, &curproxy->conf.listeners, by_fe) {
 			if (listener->state != LI_ASSIGNED)
 				continue; /* already started */
 
+            //这个是真正创建监听socket的步骤。但是有个问题我还没有想明白，就是绑定后，socket记录在哪里?
 			lerr = listener->proto->bind(listener, msg, sizeof(msg));
 
 			/* errors are reported if <verbose> is set or if they are fatal */

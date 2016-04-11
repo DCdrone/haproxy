@@ -1639,24 +1639,39 @@ static struct task *manage_global_listener_queue(struct task *t)
 	return t;
 }
 
-int main(int argc, char **argv)
+//argcÊÇÔËĞĞåhaproxy´«µİ½øÀ´µÄ²ÎÊı¸öÊı£¬argvÊÇÔËĞĞhaproxyÊ±´«µİ½øÀ´µÄ¾ßÌå²ÎÊı¡£
+int main(int argc, char **argv)  
 {
 	int err, retry;
 	struct rlimit limit;
 	char errmsg[100];
 	int pidfd = -1;
 
-	init(argc, argv);
+    //¸ù¾İÃüÁîĞĞ´«½øÀ´µÄ²ÎÊı½øĞĞ³õÊ¼»¯¡£¸Ãº¯ÊıÎ´·ÖÎöÍê³É¡£
+    init(argc, argv);     
+
+
+	//²¶»ñ¶à¸öĞÅºÅ£¬ÕâĞ©ĞÅºÅÊÇÓÉÄÚºËÌá¹©µÄ¡£·Ö±ğÊ±å£º
+	/*
+    SIGQUIT:¼üÅÌ°´ÏÂCtr+\
+    SIGUSR1:ÓÃ»§×Ô¶¨ÒåµÄĞÅºÅ
+    SIGHUP:¹ÒÆğĞÅºÅ¡£ÀıÈçÖÕ¶Ë¹Ø±ÕÊ±¡£
+    SIGPIPE:¶ÔÒÑ¾­¹Ø±ÕµÄsocket½øĞĞĞ´²Ù×÷´¥·¢µÄĞÅºÅ¡£
+    Õë¶Ô²»Í¬µÄĞÅºÅ£¬»áµ÷ÓÃ²»Í¬µÄº¯Êı¡£ÀıÈçSIGQUIT»á´¥·¢dumpº¯Êı¡£
+	*/
 	signal_register_fct(SIGQUIT, dump, SIGQUIT);
 	signal_register_fct(SIGUSR1, sig_soft_stop, SIGUSR1);
 	signal_register_fct(SIGHUP, sig_dump_state, SIGHUP);
-
 	/* Always catch SIGPIPE even on platforms which define MSG_NOSIGNAL.
 	 * Some recent FreeBSD setups report broken pipes, and MSG_NOSIGNAL
 	 * was defined there, so let's stay on the safe side.
 	 */
 	signal_register_fct(SIGPIPE, NULL, 0);
 
+	//µ÷Õû×ÊÔ´ÉÏÏŞ
+	/*
+    Ö±½ÓÍ¨¹ıÏµÍ³µ÷ÓÃ½øĞĞÉèÖÃ¡£±ÈÈçº¯Êısetrlimit¡£
+	*/
 	/* ulimits */
 	if (!global.rlimit_nofile)
 		global.rlimit_nofile = global.maxsock;
@@ -1688,6 +1703,10 @@ int main(int argc, char **argv)
 	 * That's at most 1 second. We only send a signal to old pids
 	 * if we cannot grab at least one port.
 	 */
+	 
+	//³¢ÊÔÆô¶¯proxies¡£ÕâÀïµÄproxyÊÇÖ¸Ê²Ã´?
+	//Ä¿Ç°µÄÀí½âÊÇ£¬ÕâĞ©proxies¾ÍÊÇĞèÒª¼àÌıµÄ¶Ë¿Ú¡£°üÀ¨¹ÜÀí½çÃæºÍ´úÀí¶Ë¿Ú¡£
+	
 	retry = MAX_START_RETRIES;
 	err = ERR_NONE;
 	while (retry >= 0) {
@@ -1731,6 +1750,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+    //°ó¶¨ËùÓĞ×¢²áµÄĞ­Òé¡£ÕâÀïµÄĞ­ÒéÊÇ°üÀ¨tcp,udp,httpµÄÂğ?
 	err = protocol_bind_all(errmsg, sizeof(errmsg));
 	if ((err & ~ERR_WARN) != ERR_NONE) {
 		if ((err & ERR_ALERT) || (err & ERR_WARN))
@@ -1745,11 +1765,14 @@ int main(int argc, char **argv)
 		Alert("[%s.main()] %s.\n", argv[0], errmsg);
 	}
 
+    //×¢²áĞÅºÅĞèÒªµ÷ÓÃµÄº¯Êı¡£ÎªÊ²Ã´ºÍ¿ªÊ¼µÄ4¸öĞÅºÅ²»Ò»Í¬×¢²á£¬»¹Ã»ÓĞ·ÖÎö¡£
 	/* prepare pause/play signals */
 	signal_register_fct(SIGTTOU, sig_pause, SIGTTOU);
 	signal_register_fct(SIGTTIN, sig_listen, SIGTTIN);
 
 	/* MODE_QUIET can inhibit alerts and warnings below this line */
+
+	//ÉèÖÃ°²¾²µÄÆô¶¯Ä£Ê½¡£´ËÊ±Æô¶¯Ê±ĞèÒªĞ¶ÔØtty¡£
 
 	global.mode &= ~MODE_STARTING;
 	if ((global.mode & MODE_QUIET) && !(global.mode & MODE_VERBOSE)) {
@@ -1757,6 +1780,8 @@ int main(int argc, char **argv)
 		fclose(stdin); fclose(stdout); fclose(stderr);
 	}
 
+    //´ò¿ªÈÕÖ¾ºÍpidÎÄ¼ş¡£
+    
 	/* open log & pid files before the chroot */
 	if (global.mode & (MODE_DAEMON | MODE_SYSTEMD) && global.pidfile != NULL) {
 		unlink(global.pidfile);
@@ -1785,6 +1810,7 @@ int main(int argc, char **argv)
 			" might not work well.\n"
 			"", argv[0]);
 
+    //chroot±£»¤½ø³ÌÖ»ÄÜÔÚÖ¸¶¨µÄÄ¿Â¼ÏÂ»î¶¯£¬¶øÎŞ·¨²Ù×÷ÏµÍ³ÏµÍ³Ä¿Â¼¡£ÎªÁË°²È«ĞÔ£¬Õâ¸öÒ»°ã¶¼ÒªÉèÖÃ¡£
 	/* chroot if needed */
 	if (global.chroot != NULL) {
 		if (chroot(global.chroot) == -1 || chdir("/") == -1) {
@@ -1796,6 +1822,7 @@ int main(int argc, char **argv)
 		}
 	}
 
+    //¸ù¾İpidÎÄ¼şÉ¾³ı¾ÉµÄ½ø³Ì¡£
 	if (nb_oldpids)
 		nb_oldpids = tell_old_pids(oldpids_sig);
 
@@ -1830,6 +1857,7 @@ int main(int argc, char **argv)
 			argv[0], (int)limit.rlim_cur, global.maxconn, global.maxsock, global.maxsock);
 	}
 
+    //¸ù¾İÉè¶¨Öµ¶Ô½ø³Ì½øĞĞfork¡£ÉèÖÃ²¢·¢½ø³ÌÊı¡£
 	if (global.mode & (MODE_DAEMON | MODE_SYSTEMD)) {
 		struct proxy *px;
 		struct peers *curpeers;
@@ -1856,6 +1884,7 @@ int main(int argc, char **argv)
 			relative_pid++; /* each child will get a different one */
 		}
 
+       //²¿·Öfork³öÀ´µÄ½ø³ÌĞèÒªÏŞÖÆÆä×ÊÔ´¡£¾ßÌåµÄ»¹Ã»ÓĞ¿´¡£
 #ifdef USE_CPU_AFFINITY
 		if (proc < global.nbproc &&  /* child */
 		    proc < LONGBITS &&       /* only the first 32/64 processes may be pinned */
@@ -1866,6 +1895,8 @@ int main(int argc, char **argv)
 			sched_setaffinity(0, sizeof(unsigned long), (void *)&global.cpu_map[proc]);
 #endif
 #endif
+
+        //¹Ø±ÕpidfileµÄ¾ä±ú¡£
 		/* close the pidfile both in children and father */
 		if (pidfd >= 0) {
 			//lseek(pidfd, 0, SEEK_SET);  /* debug: emulate eglibc bug */
@@ -1877,6 +1908,8 @@ int main(int argc, char **argv)
 		free(global.chroot);  global.chroot = NULL;
 		free(global.pidfile); global.pidfile = NULL;
 
+        //systemdÄ£Ê½ÏÂ¸¸½ø³Ì±ØĞëÍË³ö¡£
+        
 		if (proc == global.nbproc) {
 			if (global.mode & MODE_SYSTEMD) {
 				int i;
@@ -1893,6 +1926,7 @@ int main(int argc, char **argv)
 			exit(0); /* parent must leave */
 		}
 
+        //ĞèÒªÔÚÄ³Ğ©½ø³ÌÖĞĞ¶ÔØ²¿·Ö¼àÌı¶Ë¿ÚºÍĞ­Òé¡£ÕâÊÇÎªÊ²Ã´å
 		/* we might have to unbind some proxies from some processes */
 		px = proxy;
 		while (px != NULL) {
@@ -1937,13 +1971,19 @@ int main(int argc, char **argv)
 		}
 		pid = getpid(); /* update child's pid */
 		setsid();
+
+		//ÓĞĞ©pollerÔÚforkÖ®ºó»á³öÎÊÌâ£¬ĞèÒªÖØĞÂ¼ÓÔØ¡£ÕâÀïÊÇµÚÒ»´Î¿´µ½pollerÕâ¸ö¶«Î÷¡£Õâ¸öÊÇÀí½âhaproxyµÄ¹Ø¼ü¡£
+		
 		fork_poller();
 	}
 
+    //´ò¿ªËùÓĞ×¢²áĞ­ÒéµÄ¼àÌıÕß£¬Õâ¸öºÍprotocol_bind_allÊÇÊ²Ã´¹ØÏµå
 	protocol_enable_all();
 	/*
 	 * That's it : the central polling loop. Run until we stop.
 	 */
+	//HaproxyµÄÖ÷Ñ­»·
+	//¹ØÓÚ¾ßÌåµÄÄÚÈİÇë²ÎÕÕ¸Ãº¯ÊıµÄ·ÖÎö
 	run_poll_loop();
 
 	/* Do some cleanup */ 
