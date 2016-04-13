@@ -553,6 +553,7 @@ void dump(struct sig_handler *sh)
  * This function initializes all the necessary variables. It only returns
  * if everything is OK. If something fails, it exits.
  */
+ //HaproxyµÄ³õÊ¼»¯º¯Êı£¬³õÊ¼»¯±ØÒªµÄ±äÁ¿¡£
 void init(int argc, char **argv)
 {
 	int arg_mode = 0;	/* MODE_DEBUG, ... */
@@ -565,12 +566,14 @@ void init(int argc, char **argv)
 	struct proxy *px;
 
 	chunk_init(&trash, malloc(global.tune.bufsize), global.tune.bufsize);
+	//ÉêÇëÀ¬»ø»º´æÂğå£¿
 	alloc_trash_buffers(global.tune.bufsize);
 
 	/* NB: POSIX does not make it mandatory for gethostname() to NULL-terminate
 	 * the string in case of truncation, and at least FreeBSD appears not to do
 	 * it.
 	 */
+	//¹ØÓÚÖ÷»úÃûÏà¹ØµÄ²Ù×÷
 	memset(hostname, 0, sizeof(hostname));
 	gethostname(hostname, sizeof(hostname) - 1);
 	memset(localpeer, 0, sizeof(localpeer));
@@ -587,25 +590,48 @@ void init(int argc, char **argv)
 	global.rlimit_memmax_all = HAPROXY_MEMMAX;
 #endif
 
+    //ÄÚºËÊ±ÇøÉèÖÃº¯Êı
 	tzset();
+    //µ÷ÕûÏµÍ³Ê±¼ä£¬Õâ¸öºÍºóĞøÅĞ¶ÏÁ´½Ó³¬Ê±ÓĞ¹ØÏµ¡£
 	tv_update_date(-1,-1);
 	start_date = now;
 
+    //²úÉúËæ»úÊıÖÖ×Ó£¬ºóĞøÓÉrandomº¯Êı²úÉúËæ»úÊı
 	srandom(now_ms - getpid());
 
+    //ÉèÖÃÎÄ¼şÃèÊö·û¼¯fdsetÖĞ¶ÔÓ¦ÎÄ¼şÃèÊö·ûfdµÄÎ»£¬±íÃ÷ÄÄĞ©ĞèÒª±»ºöÂÔ
+    //Õâ¸öºÍsyslogÓĞ¹Ø
 	init_log();
+
+	//ÔİÊ±Àí½âÎªºÍĞÅºÅ´¦ÀíÓĞ¹ØµÄº¯Êı¡£Èç¹ûÕë¶ÔÓÚhaproxyµÄºËĞÄ´úÂë£¬ÔİÊ±¿ÉÒÔºöÂÔ¡£
 	signal_init();
+
+	//³õÊ¼»¯ACL¹æÔò£¬¼ì²éACL¹æÔòÊÇ·ñÔÚsample_listÖĞ×¢²á¡£Õâ¸ösample_listÊÇÄÚºËÏà¹ØµÄ?
 	if (init_acl() != 0)
 		exit(1);
+
+	//´´½¨Ò»¸öÈÎÎñ³Ø£¬»òÕß¸´ÓÃÒ»¸öÈÎÎñ³Ø¡£poolÊÇÒ»¸öpool_head½á¹¹µÄÊı×é¡£
+	//Õâ¸öÉæ¼°µ½haproxyµÄÄÚ´æ¹ÜÀí£¬Çë²ÎÕÕÎÄÕÂ:http://filwmm1314.blog.163.com/blog/static/218259192012231105854655/
 	init_task();
+
+	//Í¬ÉÏ£¬´´½¨¹ÜÀístreamµÄpool
 	init_stream();
+
+	//´´½¨¹ÜÀísessionµÄpool
 	init_session();
+
+	//´´½¨¹ÜÀíconnectionµÄpool
 	init_connection();
 	/* warning, we init buffers later */
+
+	//´´½¨¹ÜÀípendconnµÄpool
 	init_pendconn();
+
+	//´¦ÀíhttpĞ­ÒéµÄ³õÊ¼»¯£¬²¢´´½¨http_txn,requri,uniqueidµÄpool
 	init_proto_http();
 
 	/* Initialise lua. */
+	//ÕâÊÇÊ²Ã´»¹²»¶®¡£
 	hlua_init();
 
 	global.tune.options |= GTUNE_USE_SELECT;  /* select() is always available */
@@ -626,6 +652,8 @@ void init(int argc, char **argv)
 #endif
 
 	pid = getpid();
+
+    //ÉèÖÃ½ø³ÌÃû³Æ£¬ÓÃ×÷ÈÕÖ¾Êä³öµÄ±êÇ©¡£
 	progname = *argv;
 	while ((tmp = strchr(progname, '/')) != NULL)
 		progname = tmp + 1;
@@ -633,6 +661,9 @@ void init(int argc, char **argv)
 	/* the process name is used for the logs only */
 	chunk_initstr(&global.log_tag, strdup(progname));
 
+
+    //¸ù¾İÆô¶¯²ÎÊıÉèÖÃÏàÓ¦µÄÈ«¾Ö±äÁ¿¡£ÒòÎª°üÀ¨¶ÁÈ¡ÅäÖÃ£¬¶¼ÊÇÔÚÕâÒ»²½·¢Éú£¬
+    //ÔÚÕâÖ®Ç°µÄ³õÊ¼»¯¶¼ÊÇÄÚ²¿ÈÎÎñµÄ³õÊ¼»¯°É¡£
 	argc--; argv++;
 	while (argc > 0) {
 		char *flag;
@@ -739,6 +770,7 @@ void init(int argc, char **argv)
 						Alert("Cannot load configuration file %s : out of memory.\n", *argv);
 						exit(1);
 					}
+					//ÅäÖÃÎÄ¼şµØÖ·
 					wl->s = *argv;
 					LIST_ADDQ(&cfg_cfgfiles, &wl->list);
 					break;
@@ -752,13 +784,16 @@ void init(int argc, char **argv)
 		argv++; argc--;
 	}
 
+    //ÉèÖÃÄ£Ê½¡£µ±³öÏÖ¶àÖÖÄ£Ê½Ê±£¬½øĞĞÑ¡Ôñ¡£
 	global.mode = MODE_STARTING | /* during startup, we want most of the alerts */
 		(arg_mode & (MODE_DAEMON | MODE_SYSTEMD | MODE_FOREGROUND | MODE_VERBOSE
 			     | MODE_QUIET | MODE_CHECK | MODE_DEBUG));
 
+    //¼ì²éÅäÖÃÎÄ¼şÊÇ·ñÅäÖÃÁË£¬·ñÔòµ÷ÓÃusageÌáÊ¾haproxyµÄÓÃ·¨£¬²¢ÍË³ö¡£
 	if (LIST_ISEMPTY(&cfg_cfgfiles))
 		usage(progname);
 
+    //ĞŞ¸Ä¹¤×÷Â·¾¶¡£
 	if (change_dir && chdir(change_dir) < 0) {
 		Alert("Could not change to directory %s : %s\n", change_dir, strerror(errno));
 		exit(1);
@@ -1584,12 +1619,17 @@ void run_poll_loop()
 	tv_update_date(0,1);
 	while (1) {
 		/* Process a few tasks */
+		//´¦Àí¿ÉÔËĞĞµÄÈÎÎñ¡£
+		//ÕâĞ©ÈÎÎñÏ£ÍûÏÂ´ÎÔËĞĞ¾¡¿ìµÄ±»Ö´ĞĞ¡£¶ÔÓÚtcpºÍhttpÒµÎñÁ÷Á¿µÄ´¦Àí£¬¸Ãº¯Êı×îÖÕµ÷ÓÃprocess_sessionÍê³É£¬°üÀ¨½âÎöÒÑ¾­½ÓÊÕµ½µÄÊı¾İ£¬
+		//²¢Ö´ĞĞÒ»ÏµÁĞload balanceÌØĞÔ,µ«ÊÇ²»¸ºÔğ´ÓsocketÊ×·¢Êı¾İ¡£
 		process_runnable_tasks();
 
 		/* check if we caught some signals and process them */
+		//²¶×½ĞÅºÅ£¬ÕâĞ©ĞÅºÅ¿ÉÄÜÊÇ¼üÅÌµÄctr+\ÃüÁî£¬ÏàÓ¦µÄÖ´ĞĞÍË³öÃüÁî¡£
 		signal_process_queue();
 
 		/* Check if we can expire some tasks */
+		//»½ĞÑÄÇĞ©±»·ÅÈëwait queueÖĞµÄÈÎÎñ£¬½«Æä·ÅÈërun queueÖĞ¡£
 		next = wake_expired_tasks();
 
 		/* stop when there's nothing left to do */
@@ -1601,7 +1641,13 @@ void run_poll_loop()
 			next = now_ms;
 
 		/* The poller will ensure it returns around <next> */
+		//haproxyÆô¶¯½×¶Î£¬»á¼ì²âµ±Ç°ÏµÍ³¿ÉÒÔÆôÓÃÄÄÖÖÒì²½´¦Àí»úÖÆ£¬±ÈÈçselect, poll, epollµÈ£¬
+		//²¢×¢²á¶ÔÓ¦pollerµÄpoll·½·¨¡£ÀıÈçepollµÄÏà¹Øº¯Êı½Ó¿ÚÔÚev_epoll.cÖĞ¡£
+		//ÕâÀï¾ÍÊÇÖ´ĞĞÒÑ¾­×¢²áµÄpollerµÄpoll·½·¨£¬Ö÷Òª¹¦ÄÜÊÇ»ñÈ¡ËùÓĞ»î¶¯µÄfd£¬²¢µ÷ÓÃ¶ÔÓ¦µÄhandler£¬Íê³É½ÓÊÜĞÂ½¨Á¬½Ó¡¢
+		//Êı¾İÊÕ·¢µÈ¹¦ÄÜ¡£
 		cur_poller.poll(&cur_poller, next);
+
+		//pollerµÄpoll·½·¨Ö´ĞĞÊ±£¬³ÌĞò»á½«Ä³Ğ©·ûºÏÌõ¼şÒÔ±ãÔÙ´ÎÖ´ĞĞIO´¦ÀíµÄfd·Åµ½fd_spec list[]ÖĞ£¬fd_process_cached_events»áÔÙ´ÎÖ´ĞĞÕâĞ©¡£
 		fd_process_cached_events();
 		applet_run_active();
 	}
